@@ -1,0 +1,9 @@
+{
+	"name": "LocalGameModes",
+	"description": "ROUNDS multiplayer extension",
+	"version_number": "0.2.0",
+	"dependencies": [
+		"BepInEx-BepInExPack_ROUNDS-5.4.1100",
+		"willis81808-UnboundLib-2.1.3"
+	]
+}
