@@ -137,7 +137,8 @@ namespace LGM
             gameModeGo.transform.SetParent(this.grid.transform);
             gameModeGo.transform.localScale = Vector3.one;
 
-            var gameModeTextGo = GetText(GameModeManager.CurrentHandlerID == "Deathmatch" ? "DEATHMATCH" : "TEAM DEATHMATCH");
+            string currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID).Name;
+            var gameModeTextGo = GetText(currentGameMode);
             gameModeTextGo.transform.SetParent(gameModeGo.transform);
             gameModeTextGo.transform.localScale = Vector3.one;
 
@@ -208,7 +209,7 @@ namespace LGM
             {
                 if (PhotonNetwork.IsMasterClient || PhotonNetwork.CurrentRoom == null)
                 {
-                    string nextGameMode = GameModeManager.CurrentHandlerID == "ArmsRace" ? "Deathmatch" : "ArmsRace";
+                    string nextGameMode = GameModes.Types.GetNextGameMode(GameModeManager.CurrentHandlerID).Key; 
                     GameModeManager.SetGameMode(nextGameMode);
                     this.ExecuteAfterGameModeInitialized(nextGameMode, () =>
                     {
@@ -315,7 +316,8 @@ namespace LGM
                     GameModeManager.SetGameMode("ArmsRace");
                 }
 
-                PrivateRoomHandler.instance.gameModeText.text = GameModeManager.CurrentHandlerID == "ArmsRace" ? "TEAM DEATHMATCH" : "DEATHMATCH";
+                string currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID).Name;
+                PrivateRoomHandler.instance.gameModeText.text = currentGameMode;
                 PrivateRoomHandler.UpdatePlayerDisplay();
             }
 
@@ -449,7 +451,8 @@ namespace LGM
             GameModeManager.SetGameMode(gameMode);
             GameModeManager.CurrentHandler.SetSettings(settings);
 
-            PrivateRoomHandler.instance.gameModeText.text = GameModeManager.CurrentHandlerID == "ArmsRace" ? "TEAM DEATHMATCH" : "DEATHMATCH";
+            string currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID).Name;
+            PrivateRoomHandler.instance.gameModeText.text = currentGameMode;
             PrivateRoomHandler.UpdatePlayerDisplay();
 
             NetworkingManager.RPC(typeof(PrivateRoomHandler), nameof(PrivateRoomHandler.SetGameSettingsResponse), PhotonNetwork.LocalPlayer.ActorNumber);

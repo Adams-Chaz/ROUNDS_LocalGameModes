@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Photon.Pun;
+using UnboundLib.GameModes;
 
 namespace LGM
 {
@@ -42,7 +43,8 @@ namespace LGM
 
         public GameObject AddVSText()
         {
-            var teamCount = Mathf.Min(PhotonNetwork.CurrentRoom.PlayerCount, LGMMod.instance.MaxTeams);
+            var currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID);
+            var teamCount = Mathf.Min(PhotonNetwork.CurrentRoom.PlayerCount, currentGameMode.MaxTeams);
 
             var go = GameObject.Instantiate(RoundsResources.FlickeringTextPrefab, this.transform);
             go.name = "VS";
@@ -75,6 +77,7 @@ namespace LGM
         private void UpdatePlayersCoroutine()
         {
             this.teamPlayers.Clear();
+            var currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID);
 
             while (this.transform.childCount > 0)
             {
@@ -83,7 +86,7 @@ namespace LGM
 
             this.transform.localPosition = new Vector3(0, this.transform.localPosition.y, 0);
             var groups = new List<GameObject>();
-            var teamCount = Mathf.Min(PhotonNetwork.CurrentRoom.PlayerCount, LGMMod.instance.MaxTeams);
+            var teamCount = Mathf.Min(PhotonNetwork.CurrentRoom.PlayerCount, currentGameMode.MaxTeams);
 
             for (int i = 0; i < teamCount; i++)
             {
@@ -186,9 +189,10 @@ namespace LGM
 
         private int GetNetworkPlayerTeam(Photon.Realtime.Player networkPlayer)
         {
+            var currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID);
             if (networkPlayer.GetProperty<bool>("ready"))
             {
-                return networkPlayer.GetProperty<int>("readyOrder") % LGMMod.instance.MaxTeams;
+                return networkPlayer.GetProperty<int>("readyOrder") % currentGameMode.MaxTeams;
             }
 
             for (int i = 0; i < this.teamPlayers.Count - 1; i++)

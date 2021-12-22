@@ -110,29 +110,29 @@ namespace LGM
             }
         }
 
-        public int MaxPlayers
-        {
-            get
-            {
-                return 4;
-            }
-        }
+        //public int MaxPlayers
+        //{
+        //    get
+        //    {
+        //        return 4;
+        //    }
+        //}
 
-        public int MinPlayers
-        {
-            get
-            {
-                return 2;
-            }
-        }
+        //public int MinPlayers
+        //{
+        //    get
+        //    {
+        //        return 2;
+        //    }
+        //}
 
-        public int MaxTeams
-        {
-            get
-            {
-                return GameModeManager.CurrentHandlerID == "Deathmatch" ? this.MaxPlayers : 2;
-            }
-        }
+        //public int MaxTeams
+        //{
+        //    get
+        //    {
+        //        return GameModeManager.CurrentHandlerID == "Deathmatch" ? this.MaxPlayers : 2;
+        //    }
+        //}
 
         public bool IsCeaseFire { get; private set; }
 
@@ -317,6 +317,7 @@ namespace LGM
             var mainMenuGo = uiGo.transform.Find("UI_MainMenu").Find("Canvas").gameObject;
             var charSelectionGroupGo = mainMenuGo.transform.Find("ListSelector").Find("CharacterSelect").GetChild(0).gameObject;
 
+            var currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID);
             for (int i = 0; i < charSelectionGroupGo.transform.childCount; i++)
             {
                 var charSelGo = charSelectionGroupGo.transform.GetChild(i).gameObject;
@@ -324,8 +325,8 @@ namespace LGM
                 var joinGo = charSelGo.transform.GetChild(1).gameObject;
                 var readyGo = charSelGo.transform.GetChild(2).gameObject;
 
-                var textColor = PlayerSkinBank.GetPlayerSkinColors(i % this.MaxTeams).winText;
-                var faceColor = PlayerSkinBank.GetPlayerSkinColors(i % this.MaxTeams).color;
+                var textColor = PlayerSkinBank.GetPlayerSkinColors(i % currentGameMode.MaxTeams).winText;
+                var faceColor = PlayerSkinBank.GetPlayerSkinColors(i % currentGameMode.MaxTeams).color;
 
                 joinGo.GetComponentInChildren<GeneralParticleSystem>(true).particleSettings.color = textColor;
                 readyGo.GetComponentInChildren<GeneralParticleSystem>(true).particleSettings.color = textColor;
@@ -341,11 +342,12 @@ namespace LGM
         {
             var charGo = GameObject.Find("/CharacterCustom");
 
+            var currentGameMode = GameModes.Types.GetCurrentGameMode(GameModeManager.CurrentHandlerID);
             for (int i = 1; i < charGo.transform.childCount; i++)
             {
                 var creatorGo = charGo.transform.GetChild(i);
                 int playerID = i - 1;
-                int teamID = playerID % this.MaxTeams;
+                int teamID = playerID % currentGameMode.MaxTeams;
                 var faceColor = PlayerSkinBank.GetPlayerSkinColors(teamID).color;
 
                 var buttonSource = creatorGo.transform.Find("Canvas").Find("Items").GetChild(0);
@@ -382,22 +384,29 @@ namespace LGM
             var characterSelectGo = GameObject.Find("/Game/UI/UI_MainMenu/Canvas/ListSelector/CharacterSelect");
 
             var versusText = versusGo.GetComponentInChildren<TextMeshProUGUI>();
-            versusText.text = "TEAM DEATHMATCH";
+            versusText.text = "SWAT";
 
             var characterSelectPage = characterSelectGo.GetComponent<ListMenuPage>();
 
-            var deathmatchButtonGo = GameObject.Instantiate(versusGo, versusGo.transform.parent);
-            deathmatchButtonGo.transform.localScale = Vector3.one;
-            deathmatchButtonGo.transform.SetSiblingIndex(1);
+            var gameTypes = new Dictionary<string, string>();
+            gameTypes.Add("Deathmatch", "FREE FOR ALL");
+            gameTypes.Add("DoubleUp", "DOUBLE UP");
 
-            var deathmatchButtonText = deathmatchButtonGo.GetComponentInChildren<TextMeshProUGUI>();
-            deathmatchButtonText.text = "DEATHMATCH";
+            foreach(var type in gameTypes)
+            {
+                var deathmatchButtonGo = GameObject.Instantiate(versusGo, versusGo.transform.parent);
+                deathmatchButtonGo.transform.localScale = Vector3.one;
+                deathmatchButtonGo.transform.SetSiblingIndex(1);
 
-            GameObject.DestroyImmediate(deathmatchButtonGo.GetComponent<Button>());
-            var deathmatchButton = deathmatchButtonGo.AddComponent<Button>();
+                var deathmatchButtonText = deathmatchButtonGo.GetComponentInChildren<TextMeshProUGUI>();
+                deathmatchButtonText.text = type.Value;
 
-            deathmatchButton.onClick.AddListener(characterSelectPage.Open);
-            deathmatchButton.onClick.AddListener(() => GameModeManager.SetGameMode("Deathmatch"));
+                GameObject.DestroyImmediate(deathmatchButtonGo.GetComponent<Button>());
+                var deathmatchButton = deathmatchButtonGo.AddComponent<Button>();
+
+                deathmatchButton.onClick.AddListener(characterSelectPage.Open);
+                deathmatchButton.onClick.AddListener(() => GameModeManager.SetGameMode(type.Key));
+            }
         }
 
         public void InjectUIElements()
