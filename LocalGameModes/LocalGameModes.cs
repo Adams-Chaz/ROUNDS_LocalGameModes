@@ -110,30 +110,6 @@ namespace LGM
             }
         }
 
-        //public int MaxPlayers
-        //{
-        //    get
-        //    {
-        //        return 4;
-        //    }
-        //}
-
-        //public int MinPlayers
-        //{
-        //    get
-        //    {
-        //        return 2;
-        //    }
-        //}
-
-        //public int MaxTeams
-        //{
-        //    get
-        //    {
-        //        return GameModeManager.CurrentHandlerID == "Deathmatch" ? this.MaxPlayers : 2;
-        //    }
-        //}
-
         public bool IsCeaseFire { get; private set; }
 
         public Text infoText;

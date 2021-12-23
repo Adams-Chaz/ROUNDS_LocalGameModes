@@ -43,6 +43,12 @@ if ($name.Equals("LocalGameModes")) {
     $plug = New-Item -Type Directory -Path "$RoundsPath\profiles\Rounds\BepInEx\plugins\zeeke-$name" -Force
     Write-Host "Copy $TargetAssembly to $plug"
     Copy-Item -Path "$TargetPath\$name.dll" -Destination "$plug" -Force
+    Copy-Item -Path "$ProjectPath\LocalGameModes\Maps\*" -Destination "$plug" -Force
+
+    # Manifest, icon, readme
+    Copy-Item -Path "$ProjectPath\README.md" -Destination "$plug" -Force
+    Copy-Item -Path "$ProjectPath\manifest.json" -Destination "$plug" -Force
+    Copy-Item -Path "$ProjectPath\icon.png" -Destination "$plug" -Force
 }
 
 # Release package for ThunderStore
