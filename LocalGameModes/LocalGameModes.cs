@@ -1,20 +1,23 @@
 ﻿using BepInEx;
+using BepInEx.Configuration;
+using ExitGames.Client.Photon;
+using LGM.Patches;
+using LGM.UI;
 using Photon.Pun;
+using Photon.Pun.UtilityScripts;
 using System;
-using System.IO;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using TMPro;
 using UnboundLib;
 using UnboundLib.GameModes;
 using UnboundLib.Networking;
+using UnboundLib.Utils.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using Photon.Pun.UtilityScripts;
-using ExitGames.Client.Photon;
-using LGM.UI;
 
 namespace LGM
 {
@@ -51,12 +54,15 @@ namespace LGM
     }
 
     [BepInDependency("pykess.rounds.plugins.moddingutils", BepInDependency.DependencyFlags.HardDependency)]
-    [BepInDependency("com.willis.rounds.unbound", "2.1.3")]
-    [BepInPlugin(ModId, "LocalGameModes", Version)]
+    [BepInDependency("pykess.rounds.plugins.cardchoicespawnuniquecardpatch", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("com.willis.rounds.unbound", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInPlugin(ModId, ModName, Version)]
+    [BepInProcess("Rounds.exe")]
     public class LGMMod : BaseUnityPlugin
     {
+        private const string ModName = "LocalGameModes";
         private const string ModId = "io.zeeke.local.LGM";
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.2";
 
 #if DEBUG
         public static readonly bool DEBUG = true;
@@ -66,6 +72,50 @@ namespace LGM
 
         public static LGMMod instance;
         public static CardRemover remover;
+
+        /// 
+        /// Competitive Configurations
+        /// 
+
+        public static ConfigEntry<bool> WinByTwoRoundsConfig;
+        public static ConfigEntry<bool> WinByTwoPointsConfig;
+        public static ConfigEntry<int> PickTimerConfig;
+        public static ConfigEntry<int> MaxCardsConfig;
+        public static ConfigEntry<bool> PassDiscardConfig;
+        public static ConfigEntry<bool> DiscardAfterPickConfig;
+        public static ConfigEntry<int> PreGamePickCommonConfig;
+        public static ConfigEntry<int> PreGamePickUncommonConfig;
+        public static ConfigEntry<int> PreGamePickRareConfig;
+        public static ConfigEntry<int> PreGamePickStandardConfig;
+        public static ConfigEntry<int> PreGameBanConfig;
+        public static ConfigEntry<bool> PreGamePickMethodConfig;
+
+        public static bool WinByTwoRounds;
+        public static bool WinByTwoPoints;
+        public static int PickTimer;
+        public static int MaxCards;
+        public static bool PassDiscard;
+        public static bool DiscardAfterPick;
+        public static int PreGamePickCommon;
+        public static int PreGamePickUncommon;
+        public static int PreGamePickRare;
+        public static int PreGamePickStandard;
+        public static bool PreGamePickMethod;
+        public static int PreGameBan;
+
+        private static Toggle WinByTwoPointsCheckbox;
+        private static Toggle WinByTwoRoundsCheckbox;
+        private static Toggle PassCheckbox;
+        private static Toggle DiscardAfterCheckbox;
+        private static Toggle PreGamePickMethodCheckbox;
+        private static GameObject StandardSlider;
+        private static GameObject CommonSlider;
+        private static GameObject UncommonSlider;
+        private static GameObject RareSlider;
+
+        /// 
+        /// Competitive Configurations
+        /// 
 
 
         private static bool facesSet = false;
@@ -118,9 +168,24 @@ namespace LGM
 
         public DebugOptions debugOptions = new DebugOptions();
 
+
         public void Awake()
         {
             LGMMod.instance = this;
+
+            //Awake_ConfigureCompetitive();
+            WinByTwoRoundsConfig = Config.Bind("CompetitiveRounds", "WinByTwoRounds", false, "When enabled, if the game is tied at match point, then players must win by two roudns.");
+            WinByTwoPointsConfig = Config.Bind("CompetitiveRounds", "WinByTwoPoints", false, "When enabled, if the game is tied at match point, then players must win by two points.");
+            PickTimerConfig = Config.Bind("CompetitiveRounds", "PickTimer", 0, "Time limit in seconds for the pick phase, 0 disables the timer");
+            MaxCardsConfig = Config.Bind("CompetitiveRounds", "MaxCards", 0, "Maximum number of cards a player can have, 0 disables the limit");
+            PassDiscardConfig = Config.Bind("CompetitiveRounds", "Pass Discard", false, "Give players to pass during their discard phase");
+            DiscardAfterPickConfig = Config.Bind("CompetitiveRounds", "Discard After Pick", false, "Have players discard only after they have exceeded the max number of cards");
+            PreGamePickStandardConfig = Config.Bind("CompetitiveRounds", "Pre-game pick cards", 0, "The number of cards each player will pick before the game from the usual 5-card draw");
+            PreGamePickCommonConfig = Config.Bind("CompetitiveRounds", "Pre-game common pick cards", 0, "The number of common cards each player will pick from the entire deck before the game");
+            PreGamePickUncommonConfig = Config.Bind("CompetitiveRounds", "Pre-game uncommon pick cards", 0, "The number of uncommon cards each player will pick from the entire deck before the game");
+            PreGamePickRareConfig = Config.Bind("CompetitiveRounds", "Pre-game rare pick cards", 0, "The number of rare cards each player will pick from the entire deck before the game");
+            PreGamePickMethodConfig = Config.Bind("CompetitiveRounds", "Pre-game pick method", true, "The method used for pre-game pick. If true, use the standard 5-card draw method, if false use the entire deck.");
+            PreGameBanConfig = Config.Bind("CompetitiveRounds", "Pre-game baned cards", 0, "The number of cards each player will pick to ban from appearing during the game from the entire deck before the game");
 
             try
             {
@@ -133,15 +198,86 @@ namespace LGM
             }
         }
 
-        private void StartCards()
+        public void Start()
         {
-            remover = gameObject.AddComponent<CardRemover>();
-        }
+            this.soundEnabled = new Dictionary<string, bool>();
+            this.gmInitialized = new Dictionary<string, bool>();
 
-        private void StartGameModes()
-        {
-            GameModeManager.AddHandler<GameModes.GM_DoubleUp>("DoubleUp", new GameModes.DoubleUpHandler());
+            //Start_ConfigureCompetitive();
+            WinByTwoRounds = WinByTwoRoundsConfig.Value;
+            WinByTwoPoints = WinByTwoPointsConfig.Value;
+            PickTimer = PickTimerConfig.Value;
+            MaxCards = MaxCardsConfig.Value;
+            PassDiscard = PassDiscardConfig.Value;
+            DiscardAfterPick = DiscardAfterPickConfig.Value;
+            PreGamePickStandard = PreGamePickStandardConfig.Value;
+            PreGamePickCommon = PreGamePickCommonConfig.Value;
+            PreGamePickUncommon = PreGamePickUncommonConfig.Value;
+            PreGamePickRare = PreGamePickRareConfig.Value;
+            PreGamePickMethod = PreGamePickMethodConfig.Value;
+            PreGameBan = PreGameBanConfig.Value;
+
+            // add GUI to modoptions menu
+            Unbound.RegisterMenu("Competitive Rounds", () => { }, this.CompetitiveRoundsGUI, null, false);
+
+            // add hooks for pre-game picks and bans
+            GameModeManager.AddHook(GameModeHooks.HookGameStart, PreGamePickBanHandler.RestoreCardToggles);
+            GameModeManager.AddHook(GameModeHooks.HookGameStart, PreGamePickBanHandler.PreGameBan);
+            GameModeManager.AddHook(GameModeHooks.HookGameEnd, PreGamePickBanHandler.RestoreCardToggles);
+            GameModeManager.AddHook(GameModeHooks.HookGameStart, PreGamePickBanHandler.PreGamePickReset);
+            GameModeManager.AddHook(GameModeHooks.HookPickStart, PreGamePickBanHandler.PreGamePicksStandard);
+            GameModeManager.AddHook(GameModeHooks.HookPickStart, PreGamePickBanHandler.PreGamePicksCommon);
+            GameModeManager.AddHook(GameModeHooks.HookPickStart, PreGamePickBanHandler.PreGamePicksUncommon);
+            GameModeManager.AddHook(GameModeHooks.HookPickStart, PreGamePickBanHandler.PreGamePicksRare);
+
+            // add hooks for pick timer
+            GameModeManager.AddHook(GameModeHooks.HookPlayerPickStart, TimerHandler.Start);
+            GameModeManager.AddHook(GameModeHooks.HookPlayerPickEnd, PickTimerHandler.Cleanup);
+
+            // add hooks for win by 2
+            GameModeManager.AddHook(GameModeHooks.HookGameStart, WinByTwo.ResetPoints);
+            GameModeManager.AddHook(GameModeHooks.HookRoundEnd, WinByTwo.RoundX2);
+            GameModeManager.AddHook(GameModeHooks.HookPointEnd, WinByTwo.PointX2);
+
+            // add hooks for max cards
+            GameModeManager.AddHook(GameModeHooks.HookPickStart, (gm) => MaxCardsHandler.DiscardPhase(gm, false));
+            GameModeManager.AddHook(GameModeHooks.HookPickEnd, (gm) => MaxCardsHandler.DiscardPhase(gm, true));
+            GameModeManager.AddHook(GameModeHooks.HookPickEnd, PickTimerHandler.Cleanup);
+
+            // the last pickstart hook should be the pregamepickfinish
+            GameModeManager.AddHook(GameModeHooks.HookPickStart, PreGamePickBanHandler.PreGamePicksFinished);
+
+            // set all playerHasPicked to false
+            GameModeManager.AddHook(GameModeHooks.HookGameStart, ResetPlayerHasPicked);
+            GameModeManager.AddHook(GameModeHooks.HookPickEnd, ResetPlayerHasPicked);
+
+            // the last pickend hook should set skipFirstPickPhase to false
+            GameModeManager.AddHook(GameModeHooks.HookPickEnd, PreGamePickBanHandler.SetSkipFirstPickPhase);
+
+            // handshake to sync settings
+            Unbound.RegisterHandshake(LGMMod.ModId, this.OnHandShakeCompleted);
+
+            // close menus and textboxes when at main menu
+            On.MainMenuHandler.Awake += (orig, self) =>
+            {
+                // close text boxes
+                if (MaxCardsHandler.textCanvas != null) { MaxCardsHandler.textCanvas.SetActive(false); }
+                if (MaxCardsHandler.passCanvas != null) { MaxCardsHandler.passCanvas.SetActive(false); }
+                if (PickTimerHandler.timerCanvas != null) { PickTimerHandler.timerCanvas.SetActive(false); }
+                if (PreGamePickBanHandler.textCanvas != null) { PreGamePickBanHandler.textCanvas.SetActive(false); }
+
+                // close togglecards menu
+                ToggleCardsMenuHandler.Close();
+
+                // restore card toggles
+                PreGamePickBanHandler.RestoreCardTogglesAction();
+
+                orig(self);
+            };
+
+            //Start_GameModes();
             GameModeManager.AddHandler<GameModes.GM_Deathmatch>("Deathmatch", new GameModes.DeathmatchHandler());
+            GameModeManager.AddHandler<GameModes.GM_DoubleUp>("DoubleUp", new GameModes.DoubleUpHandler());
 
             GameModeManager.OnGameModeChanged += (gm) =>
             {
@@ -159,12 +295,9 @@ namespace LGM
             GameModeManager.AddHook(GameModeHooks.HookInitEnd, this.OnGameModeInitialized);
             GameModeManager.AddHook(GameModeHooks.HookGameStart, this.UnsetFaces);
             GameModeManager.AddHook(GameModeHooks.HookPickStart, this.SetPlayerFaces);
-        }
 
-        public void Start()
-        {
-            this.soundEnabled = new Dictionary<string, bool>();
-            this.gmInitialized = new Dictionary<string, bool>();
+            //Start_Cards();
+            remover = gameObject.AddComponent<CardRemover>();
 
             SceneManager.sceneLoaded += this.OnSceneLoaded;
             this.ExecuteAfterFrames(1, ArtHandler.instance.NextArt);
@@ -173,9 +306,6 @@ namespace LGM
             {
                 PhotonNetwork.LocalPlayer.SetModded();
             });
-
-            StartCards();
-            StartGameModes();
 
             this.gameObject.AddComponent<RoundEndHandler>();
 
@@ -214,6 +344,23 @@ namespace LGM
             LGMMod.instance.debugOptions = opts;
             GameModeManager.CurrentHandler?.ChangeSetting("roundsToWinGame", opts.rounds);
             GameModeManager.CurrentHandler?.ChangeSetting("pointsToWinRound", opts.points);
+        }
+
+        [UnboundRPC]
+        private static void SyncSettings(bool win2rounds, bool win2points, int pickTimer, int maxCards, bool pass, bool after, bool pickMethod, int pick, int common, int uncommon, int rare, int ban)
+        {
+            LGMMod.WinByTwoRounds = win2rounds;
+            LGMMod.WinByTwoPoints = win2points;
+            LGMMod.PickTimer = pickTimer;
+            LGMMod.MaxCards = maxCards;
+            LGMMod.PassDiscard = pass;
+            LGMMod.DiscardAfterPick = after;
+            LGMMod.PreGamePickMethod = pickMethod;
+            LGMMod.PreGamePickStandard = pick;
+            LGMMod.PreGamePickCommon = common;
+            LGMMod.PreGamePickUncommon = uncommon;
+            LGMMod.PreGamePickRare = rare;
+            LGMMod.PreGameBan = ban;
         }
 
         private IEnumerator UnsetFaces(IGameModeHandler gm)
@@ -258,6 +405,25 @@ namespace LGM
             else
             {
                 this.gmInitialized[gm.Name] = true;
+            }
+
+            yield break;
+        }
+
+        private void OnHandShakeCompleted()
+        {
+            if (PhotonNetwork.IsMasterClient)
+            {
+                NetworkingManager.RPC_Others(typeof(LGMMod), nameof(SyncSettings), new object[] { LGMMod.WinByTwoRounds, LGMMod.WinByTwoPoints, LGMMod.PickTimer, LGMMod.MaxCards, PassDiscard, DiscardAfterPick, PreGamePickMethod, PreGamePickStandard, PreGamePickCommon, PreGamePickUncommon, PreGamePickRare, PreGameBan });
+            }
+        }
+
+        private static IEnumerator ResetPlayerHasPicked(IGameModeHandler _)
+        {
+            foreach (Player player in PlayerManager.instance.players)
+            {
+                CardChoicePatchDoPick.playerHasPicked[player] = false;
+                CardChoiceVisuals_Patch_Show.playerHasPicked[player] = false;
             }
 
             yield break;
@@ -483,6 +649,290 @@ namespace LGM
                 popupGo.transform.localScale = Vector3.one;
                 popupGo.AddComponent<UI.PopUpMenu>();
             }
+        }
+
+        private void CompetitiveRoundsGUI(GameObject menu)
+        {
+            Slider maxSlider = null;
+
+            MenuHandler.CreateText("Competitive Rounds Options", menu, out TextMeshProUGUI _, 45);
+            MenuHandler.CreateText(" ", menu, out TextMeshProUGUI _, 15);
+            void TimerChanged(float val)
+            {
+                LGMMod.PickTimerConfig.Value = UnityEngine.Mathf.RoundToInt(val);
+                LGMMod.PickTimer = LGMMod.PickTimerConfig.Value;
+            }
+            MenuHandler.CreateSlider("Pick Phase Timer (seconds)\n0 disables", menu, 30, 0f, 100f, LGMMod.PickTimerConfig.Value, TimerChanged, out UnityEngine.UI.Slider timerSlider, true);
+            MenuHandler.CreateText(" ", menu, out TextMeshProUGUI maxCardsWarning, 15);
+            void MaxChanged(float val)
+            {
+
+                if (LGMMod.PreGamePickMethod && val > 0f && LGMMod.PreGamePickStandard > val)
+                {
+                    maxCardsWarning.text = "MAX CARDS MUST BE GREATER THAN OR EQUAL TO THE TOTAL NUMBER OF PRE-GAME PICKS";
+                    maxCardsWarning.color = Color.red;
+
+                    if (maxSlider != null) { Unbound.Instance.ExecuteAfterSeconds(0.1f, () => { maxSlider.value = (float) LGMMod.PreGamePickStandard; }); }
+                }
+                else if (!LGMMod.PreGamePickMethod && val > 0f && LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare > val)
+                {
+                    maxCardsWarning.text = "MAX CARDS MUST BE GREATER THAN OR EQUAL TO THE TOTAL NUMBER OF PRE-GAME PICKS";
+                    maxCardsWarning.color = Color.red;
+
+                    if (maxSlider != null) { Unbound.Instance.ExecuteAfterSeconds(0.1f, () => { maxSlider.value = (float) (LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare); }); }
+                }
+                else
+                {
+                    LGMMod.MaxCardsConfig.Value = UnityEngine.Mathf.RoundToInt(val);
+                    LGMMod.MaxCards = LGMMod.MaxCardsConfig.Value;
+                }
+                if (val == 0f)
+                {
+                    maxCardsWarning.text = " ";
+                }
+            }
+            MenuHandler.CreateSlider("Maximum Number of Cards\n0 disables", menu, 30, 0f, 50f, LGMMod.MaxCardsConfig.Value, MaxChanged, out maxSlider, true);
+            void PassCheckboxAction(bool flag)
+            {
+                LGMMod.PassDiscardConfig.Value = flag;
+                if (LGMMod.PassDiscardConfig.Value && LGMMod.DiscardAfterPickConfig.Value)
+                {
+                    LGMMod.DiscardAfterPickConfig.Value = false;
+                    DiscardAfterCheckbox.isOn = false;
+                }
+                LGMMod.PassDiscard = LGMMod.PassDiscardConfig.Value;
+                LGMMod.DiscardAfterPick = LGMMod.DiscardAfterPickConfig.Value;
+            }
+            void DiscardAfterCheckboxAction(bool flag)
+            {
+                LGMMod.DiscardAfterPickConfig.Value = flag;
+                if (LGMMod.PassDiscardConfig.Value && LGMMod.DiscardAfterPickConfig.Value)
+                {
+                    LGMMod.PassDiscardConfig.Value = false;
+                    PassCheckbox.isOn = false;
+                }
+                LGMMod.PassDiscard = LGMMod.PassDiscardConfig.Value;
+                LGMMod.DiscardAfterPick = LGMMod.DiscardAfterPickConfig.Value;
+            }
+            PassCheckbox = MenuHandler.CreateToggle(LGMMod.PassDiscardConfig.Value, "Allow players to pass during discard phase", menu, PassCheckboxAction, 30).GetComponent<Toggle>();
+            DiscardAfterCheckbox = MenuHandler.CreateToggle(LGMMod.DiscardAfterPickConfig.Value, "Discard phase after pick phase", menu, DiscardAfterCheckboxAction, 30).GetComponent<Toggle>();
+
+            MenuHandler.CreateText(" ", menu, out var _, 15);
+
+            void PickMethodCheckboxAction(bool flag)
+            {
+                LGMMod.PreGamePickMethod = flag;
+                LGMMod.PreGamePickMethodConfig.Value = flag;
+                if (LGMMod.PreGamePickMethod)
+                {
+                    StandardSlider.SetActive(true);
+                    CommonSlider.SetActive(false);
+                    UncommonSlider.SetActive(false);
+                    RareSlider.SetActive(false);
+                }
+                else
+                {
+                    StandardSlider.SetActive(false);
+                    CommonSlider.SetActive(true);
+                    UncommonSlider.SetActive(true);
+                    RareSlider.SetActive(true);
+                }
+            }
+            PreGamePickMethodCheckbox = MenuHandler.CreateToggle(LGMMod.PreGamePickMethodConfig.Value, "Use standard 5 card draw for pre-game pick phase", menu, PickMethodCheckboxAction, 30).GetComponent<Toggle>();
+
+            UnityEngine.UI.Slider standard = null;
+            UnityEngine.UI.Slider common = null;
+            UnityEngine.UI.Slider uncommon = null;
+            UnityEngine.UI.Slider rare = null;
+            void StandardChanged(float val)
+            {
+                LGMMod.PreGamePickStandardConfig.Value = UnityEngine.Mathf.RoundToInt(val);
+                LGMMod.PreGamePickStandard = LGMMod.PreGamePickStandardConfig.Value;
+
+                if (LGMMod.PreGamePickMethod && LGMMod.MaxCards > 0 && LGMMod.PreGamePickStandard > LGMMod.MaxCards)
+                {
+                    maxCardsWarning.text = "MAX CARDS MUST BE GREATER THAN OR EQUAL TO THE TOTAL NUMBER OF PRE-GAME PICKS";
+                    maxCardsWarning.color = Color.red;
+
+                    maxSlider.value = (float) LGMMod.PreGamePickStandard;
+                    MaxChanged((float) LGMMod.PreGamePickStandard);
+                }
+                else
+                {
+                    //maxCardsWarning.text = " ";
+                }
+            }
+            void CommonChanged(float val)
+            {
+                LGMMod.PreGamePickCommonConfig.Value = UnityEngine.Mathf.RoundToInt(val);
+                LGMMod.PreGamePickCommon = LGMMod.PreGamePickCommonConfig.Value;
+
+                if (!LGMMod.PreGamePickMethod && LGMMod.MaxCards > 0 && LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare > LGMMod.MaxCards)
+                {
+                    maxCardsWarning.text = "MAX CARDS MUST BE GREATER THAN OR EQUAL TO THE TOTAL NUMBER OF PRE-GAME PICKS";
+                    maxCardsWarning.color = Color.red;
+
+                    maxSlider.value = (float) (LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare);
+                    MaxChanged((float) (LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare));
+                }
+                else
+                {
+                    //maxCardsWarning.text = " ";
+                }
+            }
+            void UncommonChanged(float val)
+            {
+                LGMMod.PreGamePickUncommonConfig.Value = UnityEngine.Mathf.RoundToInt(val);
+                LGMMod.PreGamePickUncommon = LGMMod.PreGamePickUncommonConfig.Value;
+                if (!LGMMod.PreGamePickMethod && LGMMod.MaxCards > 0 && LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare > LGMMod.MaxCards)
+                {
+                    maxCardsWarning.text = "MAX CARDS MUST BE GREATER THAN OR EQUAL TO THE TOTAL NUMBER OF PRE-GAME PICKS";
+                    maxCardsWarning.color = Color.red;
+
+                    maxSlider.value = (float) (LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare);
+                    MaxChanged((float) (LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare));
+                }
+                else
+                {
+                    //maxCardsWarning.text = " ";
+                }
+            }
+            void RareChanged(float val)
+            {
+                LGMMod.PreGamePickRareConfig.Value = UnityEngine.Mathf.RoundToInt(val);
+                LGMMod.PreGamePickRare = LGMMod.PreGamePickRareConfig.Value;
+                if (!LGMMod.PreGamePickMethod && LGMMod.MaxCards > 0 && LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare > LGMMod.MaxCards)
+                {
+                    maxCardsWarning.text = "MAX CARDS MUST BE GREATER THAN OR EQUAL TO THE TOTAL NUMBER OF PRE-GAME PICKS";
+                    maxCardsWarning.color = Color.red;
+
+                    maxSlider.value = (float) (LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare);
+                    MaxChanged((float) (LGMMod.PreGamePickCommon + LGMMod.PreGamePickUncommon + LGMMod.PreGamePickRare));
+                }
+                else
+                {
+                    //maxCardsWarning.text = " ";
+                }
+            }
+
+            StandardSlider = MenuHandler.CreateSlider("Pre-game picks", menu, 30, 0f, 10f, LGMMod.PreGamePickStandardConfig.Value, StandardChanged, out standard, true);
+            StandardSlider.SetActive(false);
+
+            CommonSlider = MenuHandler.CreateSlider("Pre-game common picks", menu, 30, 0f, 10f, LGMMod.PreGamePickCommonConfig.Value, CommonChanged, out common, true);
+            CommonSlider.SetActive(false);
+
+            UncommonSlider = MenuHandler.CreateSlider("Pre-game uncommon picks", menu, 30, 0f, 10f, LGMMod.PreGamePickUncommonConfig.Value, UncommonChanged, out uncommon, true);
+            UncommonSlider.SetActive(false);
+
+            RareSlider = MenuHandler.CreateSlider("Pre-game rare picks", menu, 30, 0f, 10f, LGMMod.PreGamePickRareConfig.Value, RareChanged, out rare, true);
+            RareSlider.SetActive(false);
+
+
+            if (PreGamePickMethodCheckbox.isOn)
+            {
+                StandardSlider.SetActive(true);
+                CommonSlider.SetActive(false);
+                UncommonSlider.SetActive(false);
+                RareSlider.SetActive(false);
+            }
+            else
+            {
+                StandardSlider.SetActive(false);
+                CommonSlider.SetActive(true);
+                UncommonSlider.SetActive(true);
+                RareSlider.SetActive(true);
+            }
+
+
+            MenuHandler.CreateText(" ", menu, out var _, 15);
+
+            void BanChanged(float val)
+            {
+                LGMMod.PreGameBanConfig.Value = UnityEngine.Mathf.RoundToInt(val);
+                LGMMod.PreGameBan = LGMMod.PreGameBanConfig.Value;
+            }
+            MenuHandler.CreateSlider("Pre-game ban picks", menu, 30, 0f, 10f, LGMMod.PreGameBanConfig.Value, BanChanged, out UnityEngine.UI.Slider ban, true);
+
+            MenuHandler.CreateText(" ", menu, out var _, 15);
+
+            void WinByTwoRoundsCheckboxAction(bool flag)
+            {
+                LGMMod.WinByTwoRoundsConfig.Value = flag;
+                if (LGMMod.WinByTwoPointsConfig.Value && LGMMod.WinByTwoRoundsConfig.Value)
+                {
+                    LGMMod.WinByTwoPointsConfig.Value = false;
+                    WinByTwoPointsCheckbox.isOn = false;
+                }
+                LGMMod.WinByTwoRounds = LGMMod.WinByTwoRoundsConfig.Value;
+            }
+            void WinByTwoPointsCheckboxAction(bool flag)
+            {
+                LGMMod.WinByTwoPointsConfig.Value = flag;
+                if (LGMMod.WinByTwoPointsConfig.Value && LGMMod.WinByTwoRoundsConfig.Value)
+                {
+                    LGMMod.WinByTwoRoundsConfig.Value = false;
+                    WinByTwoRoundsCheckbox.isOn = false;
+                }
+                LGMMod.WinByTwoPoints = LGMMod.WinByTwoPointsConfig.Value;
+            }
+            WinByTwoPointsCheckbox = MenuHandler.CreateToggle(LGMMod.WinByTwoPointsConfig.Value, "Win By Two Points to break ties", menu, WinByTwoPointsCheckboxAction, 30).GetComponent<Toggle>();
+            WinByTwoRoundsCheckbox = MenuHandler.CreateToggle(LGMMod.WinByTwoRoundsConfig.Value, "Win By Two Rounds to break ties", menu, WinByTwoRoundsCheckboxAction, 30).GetComponent<Toggle>();
+            MenuHandler.CreateText(" ", menu, out var _, 5);
+
+            void ResetButton()
+            {
+                timerSlider.value = 0f;
+                TimerChanged(0f);
+                maxSlider.value = 0f;
+                MaxChanged(0f);
+                PassCheckbox.isOn = false;
+                DiscardAfterCheckbox.isOn = false;
+                PassCheckboxAction(false);
+                DiscardAfterCheckboxAction(false);
+                if (standard != null) { standard.value = 0f; }
+                StandardChanged(0f);
+                if (common != null) { common.value = 0f; }
+                CommonChanged(0f);
+                if (uncommon != null) { uncommon.value = 0f; }
+                UncommonChanged(0f);
+                if (rare != null) { rare.value = 0f; }
+                RareChanged(0f);
+                ban.value = 0f;
+                BanChanged(0f);
+                WinByTwoPointsCheckbox.isOn = false;
+                WinByTwoRoundsCheckbox.isOn = false;
+                WinByTwoPointsCheckboxAction(false);
+                WinByTwoRoundsCheckboxAction(false);
+            }
+            void DefaultButton()
+            {
+                timerSlider.value = 15f;
+                TimerChanged(15f);
+                maxSlider.value = 0f;
+                MaxChanged(0f);
+                PassCheckbox.isOn = false;
+                DiscardAfterCheckbox.isOn = false;
+                PassCheckboxAction(false);
+                DiscardAfterCheckboxAction(false);
+                PreGamePickMethodCheckbox.isOn = true;
+                PickMethodCheckboxAction(true);
+                if (standard != null) { standard.value = 2f; }
+                StandardChanged(2f);
+                if (common != null) { common.value = 0f; }
+                CommonChanged(0f);
+                if (uncommon != null) { uncommon.value = 0f; }
+                UncommonChanged(0f);
+                if (rare != null) { rare.value = 0f; }
+                RareChanged(0f);
+                ban.value = 2f;
+                BanChanged(2f);
+                WinByTwoPointsCheckbox.isOn = false;
+                WinByTwoRoundsCheckbox.isOn = true;
+                WinByTwoPointsCheckboxAction(false);
+                WinByTwoRoundsCheckboxAction(true);
+            }
+            MenuHandler.CreateButton("Disable All", menu, ResetButton, 30);
+            MenuHandler.CreateButton("Sane Defaults", menu, DefaultButton, 30);
         }
     }
 }

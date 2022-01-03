@@ -64,10 +64,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="UnboundLib" Version="2.1.3" />
+    <PackageReference Include="UnboundLib" Version="2.10.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="CardChoiceSpawnUniqueCardPatch">
+      <HintPath>..\Assemblies\CardChoiceSpawnUniqueCardPatch.dll</HintPath>
+    </Reference>
     <Reference Include="MMHOOK_Assembly-CSharp">
       <HintPath>..\Assemblies\MMHOOK_Assembly-CSharp.dll</HintPath>
     </Reference>
@@ -104,9 +107,6 @@
     </Reference>
     <Reference Include="SonigonAudioEngine.Runtime">
       <HintPath>$(RoundsFolder)\Rounds_Data\Managed\SonigonAudioEngine.Runtime.dll</HintPath>
-    </Reference>
-    <Reference Include="UnboundLib">
-      <HintPath>..\Assemblies\UnboundLib.dll</HintPath>
     </Reference>
     <Reference Include="Unity.TextMeshPro">
       <HintPath>$(RoundsFolder)\Rounds_Data\Managed\Unity.TextMeshPro.dll</HintPath>

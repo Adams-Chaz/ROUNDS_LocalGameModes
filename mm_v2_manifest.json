@@ -1,0 +1,36 @@
+{
+	"manifestVersion":1,
+	"name":"Zeeke-LocalGameModes",
+	"authorName":"Zeeke",
+	"displayName":"LocalGameModes",
+	"description":"ROUNDS multiplayer extension, including: Maps; Game Types; Cards; Configurations;",
+	"networkMode":"both",
+    	"packageType":"mod",
+    	"installMode":"managed",
+	"loaders": [
+        	"bepinex"
+    	]
+	"dependencies":[
+		"BepInEx-BepInExPack_ROUNDS-5.4.1100",
+		"CrazyMan-ToggleEffectsMod-1.1.3",
+		"olavim-MapsExtended-0.9.3",
+		"Pykess-CardChoiceSpawnUniqueCardPatch-0.1.7",
+		"Pykess-ModdingUtils-0.2.5",
+		"willis81808-MMHook-1.0.0",
+		"willis81808-UnboundLib-2.10.0"
+	],
+	"incompatibilities":[],
+	"optionalDependencies":[],
+	"versionNumber":{
+		"major":#VERSION_MAJOR#,
+		"minor":#VERSION_MINOR#,
+		"patch":#VERSION_PATCH#
+	},
+	"enabled":true,
+	"icon":""
+}
+
+
+
+
+

@@ -7,12 +7,12 @@ namespace LGM.GameModes
     {
         public override string Name
         {
-            get { return "Double Up"; }
+            get { return GameModes.Types._doubleUp; }
         }
 
         public override GameSettings Settings { get; protected set; }
 
-        public DoubleUpHandler() : base("DoubleUp")
+        public DoubleUpHandler() : base(GameModes.Types._doubleUp)
         {
             this.Settings = new GameSettings() {
                 { "pointsToWinRound", 2 },

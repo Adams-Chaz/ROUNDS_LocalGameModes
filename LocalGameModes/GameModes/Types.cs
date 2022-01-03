@@ -20,9 +20,9 @@
 
     public static class Types
     {
-        private const string _deathmatch = "Deathmatch";
-        private const string _armsRace = "ArmsRace";
-        private const string _doubleUp = "DoubleUp";
+        public const string _deathmatch = "Deathmatch";
+        public const string _armsRace = "ArmsRace";
+        public const string _doubleUp = "DoubleUp";
 
         /// <summary>
         /// Free for All battle royal.

@@ -7,12 +7,12 @@ namespace LGM.GameModes
     {
         public override string Name
         {
-            get { return "Deathmatch"; }
+            get { return GameModes.Types._deathmatch; }
         }
 
         public override GameSettings Settings { get; protected set; }
 
-        public DeathmatchHandler() : base("Deathmatch")
+        public DeathmatchHandler() : base(GameModes.Types._deathmatch)
         {
             this.Settings = new GameSettings() {
                 { "pointsToWinRound", 2 },
